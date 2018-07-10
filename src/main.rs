@@ -1,6 +1,9 @@
 extern crate vpx_sys;
 
 use std::{mem,ptr};
+use std::fs::File;
+use std::io::Write;
+
 use vpx_sys::*;
 
 fn get_packets(mut ctx: vpx_codec_ctx_t) -> Option<Vec<u8>> {    
@@ -102,44 +105,40 @@ fn main() {
     raw.planes[2] = unsafe { mem::transmute(v.as_ptr()) };
 
     let mut cfg = unsafe { mem::uninitialized() };
-        let mut ret = unsafe { vpx_codec_enc_config_default(vpx_codec_vp9_cx(), &mut cfg, 0) };
+    let mut ret = unsafe { vpx_codec_enc_config_default(vpx_codec_vp9_cx(), &mut cfg, 0) };
 
-        if ret != VPX_CODEC_OK {
-            println!("VP9 image frame error: default Configuration failed");
+    if ret != VPX_CODEC_OK {
+        println!("VP9 image frame error: default Configuration failed");
 
-            //release the image
-            unsafe {
-                vpx_img_free(&mut raw)
-            };
+        //release the image
+        unsafe { vpx_img_free(&mut raw) };
 
-            return ;
-        }
+        return ;
+    }
 
-        cfg.g_w = w;
-        cfg.g_h = h;
-        cfg.g_timebase.num = 1;
-        cfg.g_timebase.den = 30;
-        cfg.rc_target_bitrate = 100 * 1014;
+    cfg.g_w = w;
+    cfg.g_h = h;
+    cfg.g_timebase.num = 1;
+    cfg.g_timebase.den = 30;
+    cfg.rc_target_bitrate = 100 * 1014;
 
-        ret = unsafe {
-            vpx_codec_enc_init_ver(
-                &mut ctx,
-                vpx_codec_vp9_cx(),
-                &mut cfg,
-                0,
-                (14+4+5) as i32,//23 for libvpx-1.7.0; VPX_ENCODER_ABI_VERSION does not get expanded correctly by bind-gen
-            )
-        };
+    ret = unsafe {
+        vpx_codec_enc_init_ver(
+            &mut ctx,
+            vpx_codec_vp9_cx(),
+            &mut cfg,
+            0,
+            (14+4+5) as i32,//23 for libvpx-1.7.0; VPX_ENCODER_ABI_VERSION does not get expanded correctly by bind-gen
+        )
+    };
 
-        if ret != VPX_CODEC_OK {            
-            println!("VP9 image frame error: codec init failed {:?}", ret);
+    if ret != VPX_CODEC_OK {            
+        println!("VP9 image frame error: codec init failed {:?}", ret);
 
-            unsafe {
-                vpx_img_free(&mut raw)
-            };  
+        unsafe { vpx_img_free(&mut raw) };  
 
-            return ;
-        }
+        return ;
+    }
 
     let mut image_frame : Vec<u8> = Vec::new() ;
 
@@ -173,5 +172,27 @@ fn main() {
 
     unsafe {
         vpx_codec_destroy(&mut ctx)
+    };
+
+    //save a frame to disk
+    //let filename = format!();
+    let filepath = std::path::Path::new("test_frame.vp9");
+
+    let mut buffer = match File::create(filepath) {
+        Ok(f) => f,
+        Err(err) => {                
+            println!("{}", err);
+            return;
+        }
+    };
+
+    match buffer.write_all(&image_frame) {
+        Ok(()) => {                                    
+        },
+        Err(err) => {
+            println!("image cache write error: {}, removing the temporary file", err);
+            let _ = std::fs::remove_file(filepath);
+            return;
+        }
     };
 }
