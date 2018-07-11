@@ -86,7 +86,7 @@ fn main() {
 
     let align = 1 ;
 
-    let ret = unsafe { vpx_img_alloc(&mut raw, vpx_img_fmt::VPX_IMG_FMT_I420, w, h, align) };//I420
+    let ret = unsafe { vpx_img_alloc(&mut raw, vpx_img_fmt::VPX_IMG_FMT_I444, w, h, align) };//I420 or I444
     if ret.is_null() {
         println!("VP9 image frame error: image allocation failed");
         return ;
@@ -97,8 +97,13 @@ fn main() {
 
     let pixel_count = w * h ;
     let y : &[u8] = &vec![128; pixel_count as usize];
-    let u : &[u8] = &vec![128; (pixel_count/4) as usize];
-    let v : &[u8] = &vec![128; (pixel_count/4) as usize];        
+    //I420
+    /*let u : &[u8] = &vec![128; (pixel_count/4) as usize];
+    let v : &[u8] = &vec![128; (pixel_count/4) as usize];*/
+
+    //I444
+    let u : &[u8] = &vec![128; pixel_count as usize];
+    let v : &[u8] = &vec![128; pixel_count as usize];        
 
     raw.planes[0] = unsafe { mem::transmute(y.as_ptr()) };
     raw.planes[1] = unsafe { mem::transmute(u.as_ptr()) };
